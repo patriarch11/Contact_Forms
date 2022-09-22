@@ -89,7 +89,7 @@ async def post_security_form(email: EmailSchema = Depends(EmailSchema.as_form)) 
             body=email.message,
             attachments=[dict(email)['file']]
         )
-        s3_upload(dict(email)['file'])
+        s3_upload(dict(email)['file'])  # Put any Form attached files onto S3 bucket
     else:  # if attachments is empty
         message = MessageSchema(
             subject='subject line',
