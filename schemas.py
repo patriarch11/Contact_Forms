@@ -1,4 +1,4 @@
-from fastapi import Form
+from fastapi import Form, File
 from pydantic import BaseModel
 
 
@@ -48,3 +48,10 @@ class FollowingForm(BaseModel):
             message=message,
             copy_=copy_
         )
+
+
+class EmailMessage(BaseModel):
+    workEmail: str = Form(...)
+    message: str = Form(...)
+    files: File = File(None)
+
