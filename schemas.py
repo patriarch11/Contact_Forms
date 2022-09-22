@@ -1,5 +1,6 @@
-from fastapi import Form, File
+from fastapi import Form, File, UploadFile
 from pydantic import BaseModel
+
 
 # schema for sales web form
 class SalesForm(BaseModel):
@@ -49,8 +50,16 @@ class SalesForm(BaseModel):
             copy_=copy_
         )
 
+
 # schemas for sending email
-class EmailSchemas(BaseModel):
-    workEmail: str = Form(...)
-    message: str = Form(...)
-    files: bytes = File(None)
+class EmailSchema(BaseModel):
+    to: str
+    workEmail: str
+    message: str
+    files: UploadFile
+
+    @classmethod
+    def as_form(cls, to: str = Form(...), workEmail: str = Form(...),
+                message: str = Form(...), file: UploadFile = File(None)):
+
+        return cls(to=to, workEmail=workEmail, message=message, file=file)
