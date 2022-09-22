@@ -36,8 +36,14 @@ def get_custom_connection_config(mail_from) -> ConnectionConfig:
 
 # upload file to s3
 def s3_upload(file_obj: UploadFile = File(...)):
+    """
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.upload_fileobj
+    """
+
     # Creating S3 Resource From the Session
-    pass
+    s3 = boto3.client('s3')
+    with open(file_obj.filename, 'rb') as data:
+        s3.upload_fileobj(data, '<mybucket>', '<mykey>')
 
 
 # handling post sales form
@@ -83,13 +89,14 @@ async def post_security_form(email: EmailSchema = Depends(EmailSchema.as_form)) 
             body=email.message,
             attachments=[dict(email)['file']]
         )
+        s3_upload(dict(email)['file'])
     else:  # if attachments is empty
         message = MessageSchema(
             subject='subject line',
             recepients=[email.to],
             body=email.message,
         )
-    s3_upload(dict(email)['file'])
+
     fm = FastMail(config=conf)
     await fm.send_message(message, template_name="email_template.html")
     return JSONResponse(status_code=200, content={"message": "email has been sent"})
