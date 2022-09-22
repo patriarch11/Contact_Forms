@@ -1,8 +1,8 @@
 from fastapi import Form, File
 from pydantic import BaseModel
 
-
-class FollowingForm(BaseModel):
+# schema for sales web form
+class SalesForm(BaseModel):
     snrs: bool
     dmarc: bool
     emailsecurity: bool
@@ -31,7 +31,7 @@ class FollowingForm(BaseModel):
                 org: str = Form(...),
                 workEmail: str = Form(..., regex=r'^[a-zA-Z0-9](-?[a-zA-Z0-9_])+@[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$'),
                 message: str = Form(...),
-                copy_: bool = Form(False)  # cause 'copy' is base attribute of base model
+                copy_: bool = Form(False)  # Field name "copy" shadows a BaseModel attribute
                 ):
         return cls(
             snrs=snrs,
@@ -49,9 +49,8 @@ class FollowingForm(BaseModel):
             copy_=copy_
         )
 
-
-class EmailMessage(BaseModel):
+# schemas for sending email
+class EmailSchemas(BaseModel):
     workEmail: str = Form(...)
     message: str = Form(...)
-    files: File = File(None)
-
+    files: bytes = File(None)
