@@ -1,8 +1,5 @@
 from fastapi import Form, File, UploadFile
-from fastapi_mail import ConnectionConfig
 from pydantic import BaseModel
-from pathlib import Path
-import os
 
 # regex for checking valid email address
 VALID_EMAIL_VALUE = r'^[a-zA-Z0-9](-?[a-zA-Z0-9_])+@[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$'
@@ -70,18 +67,4 @@ class EmailSchema(BaseModel):
         return cls(to=to, workEmail=workEmail, message=message, file=file)
 
 
-# get custom connection config for sending mail
-def get_custom_connection_config(mail_from) -> ConnectionConfig:
-    return ConnectionConfig(
-        MAIL_USERNAME=f"{os.getenv('MAIL_USERNAME')}",
-        MAIL_PASSWORD=f"{os.getenv('MAIL_PASSWD')}",
-        MAIL_FROM=f"{mail_from}",
-        MAIL_PORT=f"{os.getenv('MAIL_PORT')}",
-        MAIL_SERVER=f"{os.getenv('MAIL_SERVER')}",
-        MAIL_FROM_NAME=F"{os.getenv('MAIL_FROM_NAME')}",
-        MAIL_TLS=True,
-        MAIL_SSL=False,
-        USE_CREDENTIALS=True,
-        VALIDATE_CERTS=True,
-        TEMPLATE_FOLDER=Path(__file__).parent / 'templates'
-    )
+
