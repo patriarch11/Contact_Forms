@@ -62,9 +62,6 @@ class EmailSchema(BaseModel):
     files: UploadFile
 
     @classmethod
-    def as_form(cls, to: str = Form(...), workEmail: str = Form(..., regex=VALID_EMAIL_VALUE),  # check for valid value
+    def as_form(cls, to: str = Form(..., regex=VALID_EMAIL_VALUE), workEmail: str = Form(..., regex=VALID_EMAIL_VALUE),
                 message: str = Form(...), file: UploadFile = File(None)):
         return cls(to=to, workEmail=workEmail, message=message, file=file)
-
-
-

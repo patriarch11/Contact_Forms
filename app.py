@@ -10,11 +10,24 @@ from pathlib import Path
 load_dotenv('.env')
 app = FastAPI()
 
-# creating session
-session = boto3.Session(
+"""
+Connect to S3 Service
+"""
+client_s3 = boto3.client(
+    service_name='s3',
     region_name=os.getenv('REGION_NAME'),
     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+)
+"""
+Connect to DynamoDB 
+"""
+client_dynamo = boto3.client(
+    service_name='dynamodb',
+    region_name=os.getenv('REGION_NAME'),
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+)
 
 
 # get custom connection config for sending mail
@@ -24,7 +37,7 @@ def get_custom_connection_config(mail_from) -> ConnectionConfig:
         MAIL_PASSWORD=f"{os.getenv('MAIL_PASSWD')}",
         MAIL_FROM=f"{mail_from}",
         MAIL_PORT=f"{os.getenv('MAIL_PORT')}",
-        MAIL_SERVER=f"{os.getenv('MAIL_SERVER')}",
+        MAIL_SERVER=os.getenv('MAIL_SERVER'),
         MAIL_FROM_NAME=F"{os.getenv('MAIL_FROM_NAME')}",
         MAIL_TLS=True,
         MAIL_SSL=False,
@@ -35,28 +48,27 @@ def get_custom_connection_config(mail_from) -> ConnectionConfig:
 
 
 # upload file to s3
-def s3_upload(file_obj: UploadFile = File(...)):
-    """
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.upload_fileobj
-    """
-
-    # Creating S3 Resource From the Session
-    s3 = boto3.client('s3')
-    with open(file_obj.filename, 'rb') as data:
-        s3.upload_fileobj(data, '<mybucket>', '<mykey>')
+def s3_upload(file: UploadFile = File(...)) -> JSONResponse:
+    response = client_s3.put_object(
+        Body=file.filename,
+        Bucket=os.getenv('BUCKET_NAME'),
+        Key=file.filename
+    )
+    return response
 
 
 # handling post sales form
 @app.post('/sales')
 async def post_sale_form(form_data: SalesForm = Depends(SalesForm.as_form)) -> JSONResponse:
-    conf = get_custom_connection_config('your_email_from@domain.com')
+    conf = get_custom_connection_config(os.getenv('MAIL_FROM_NAME'))
 
     if dict(form_data)['copy_'] == True:  # CC the email to workEmail address
         message = MessageSchema(
             subject='subject line',
-            recepients=[dict(form_data)['workEmail']],
+            recepients=[form_data.workEmail],
             body=dict(form_data)['message'],
         )
+
     else:  # send email only to sales@domain.com
         message = MessageSchema(
             subject='subject line',
@@ -64,11 +76,8 @@ async def post_sale_form(form_data: SalesForm = Depends(SalesForm.as_form)) -> J
             body=dict(form_data)['message'],
         )
 
-    # connecting to db
-    dynamo_client = session.resource(service_name='dynamodb')
-    # creating table
-    form_data_table = dynamo_client.Table('form_data_table')
-    # insert values from ford_data to table
+    # connect to table, which already exists and have a columns(dict(form_data.keys())
+    form_data_table = client_dynamo.Table(os.getenv('TABLE_NAME'))
     form_data_table.put_item(Item=dict(form_data))  # Put everything we got into DynamoDB.
 
     fm = FastMail(config=conf)
@@ -89,14 +98,15 @@ async def post_security_form(email: EmailSchema = Depends(EmailSchema.as_form)) 
             body=email.message,
             attachments=[dict(email)['file']]
         )
-        s3_upload(dict(email)['file'])  # Put any Form attached files onto S3 bucket
+        resp = s3_upload(dict(email)['file'])  # Put any Form attached files onto S3 bucket
     else:  # if attachments is empty
         message = MessageSchema(
             subject='subject line',
             recepients=[email.to],
             body=email.message,
         )
+        resp = None
 
     fm = FastMail(config=conf)
     await fm.send_message(message, template_name="email_template.html")
-    return JSONResponse(status_code=200, content={"message": "email has been sent"})
+    return JSONResponse(status_code=200, content=[{"message": "email has been sent"}, resp])
