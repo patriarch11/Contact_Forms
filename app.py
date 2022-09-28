@@ -47,16 +47,6 @@ def get_custom_connection_config(mail_from) -> ConnectionConfig:
     )
 
 
-# upload file to s3
-def s3_upload(file: UploadFile = File(...)) -> JSONResponse:
-    response = client_s3.put_object(
-        Body=file.filename,
-        Bucket=os.getenv('BUCKET_NAME'),
-        Key=file.filename
-    )
-    return response
-
-
 # handling post sales form
 @app.post('/sales')
 async def post_sale_form(form_data: SalesForm = Depends(SalesForm.as_form)) -> JSONResponse:
@@ -98,15 +88,16 @@ async def post_security_form(email: EmailSchema = Depends(EmailSchema.as_form)) 
             body=email.message,
             attachments=[dict(email)['file']]
         )
-        resp = s3_upload(dict(email)['file'])  # Put any Form attached files onto S3 bucket
+        # Put any Form attached files onto S3 bucket
+        client_s3.Bucket(os.getenv('BUCKET_NAME')).upload_fileobj(dict(email)['file'].file,
+                                                                  dict(email)['file'].filename)
     else:  # if attachments is empty
         message = MessageSchema(
             subject='subject line',
             recepients=[email.to],
             body=email.message,
         )
-        resp = None
 
     fm = FastMail(config=conf)
     await fm.send_message(message, template_name="email_template.html")
-    return JSONResponse(status_code=200, content=[{"message": "email has been sent"}, resp])
+    return JSONResponse(status_code=200, content={"message": "email has been sent, all files uploaded to s3"})
